@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>AUDIO PLAYER</title>
+        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+        <style>
+            :root {
+                --pink-light: #fce4ec;
+                --pink-mid:   #f48fb1;
+                --pink-hot:   #e91e8c;
+                --pink-deep:  #c2185b;
+                --black:      #1a1a1a;
+                --black-soft: #2d2d2d;
+                --font-head:  'Playfair Display', serif;
+                --font-body:  'DM Sans', sans-serif;
+            }
+
+            *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+            body {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 24px;
+                font-family: var(--font-body);
+                background-color: #fadadd;
+            }
+
+            /* player card */
+            .player {
+                background: var(--black);
+                border-radius: 24px;
+                padding: 32px 28px 28px;
+                width: 100%;
+                max-width: 430px;
+                border: 2px solid var(--pink-hot);
+                box-shadow: 0 8px 40px rgba(233,30,140,0.25), 0 2px 8px rgba(0,0,0,0.4);
+            }
+
+            .player-title {
+                text-align: center;
+                margin-bottom: 22px;
+            }
+            .player-title h2 {
+                font-family: var(--font-head);
+                font-size: 1.5rem;
+                color: var(--pink-hot);
+                letter-spacing: 2px;
+            }
+
+            /* upload zone */
+            .upload-space {
+                background: var(--black-soft);
+                border: 2px dashed var(--pink-mid);
+                border-radius: 14px;
+                padding: 22px 16px;
+                text-align: center;
+                cursor: pointer;
+                transition: border-color 0.25s, background 0.25s;
+                color: var(--pink-mid);
+                font-size: 0.82rem;
+                margin-bottom: 22px;
+            }
+            .upload-space:hover {
+                border-color: var(--pink-hot);
+                background: #2a1a22;
+                color: var(--pink-light);
+            }
+            .upload-space .icon { font-size: 1.8rem; display: block; margin-bottom: 6px; }
+            #fileInput { display: none; }
+
+            /* waveform bars */
+            .waveform {
+                height: 44px;
+                display: flex;
+                align-items: center;
+                gap: 3px;
+                margin-bottom: 18px;
+                overflow: hidden;
+            }
+            .wave-bar {
+                flex: 1;
+                background: #3a2030;
+                border-radius: 2px;
+                min-height: 4px;
+                transition: background 0.3s;
+            }
+            .wave-bar.played { background: var(--pink-hot); }
+
+            @keyframes wavePulse {
+                0%, 100% { transform: scaleY(1); }
+                50%       { transform: scaleY(1.7); }
+            }
+            .wave-bar.animating { animation: wavePulse 0.55s ease-in-out infinite; }
+
+            /* seek bar row */
+            .seek-row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 18px;
+            }
+            .time-label {
+                font-size: 0.72rem;
+                color: var(--pink-mid);
+                white-space: nowrap;
+                min-width: 34px;
+                font-variant-numeric: tabular-nums;
+            }
+            #seekBar {
+                flex: 1;
+                -webkit-appearance: none;
+                appearance: none;
+                height: 4px;
+                border-radius: 2px;
+                outline: none;
+                cursor: pointer;
+                background: #3a2030;
+            }
+            #seekBar::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 14px; height: 14px;
+                border-radius: 50%;
+                background: var(--pink-light);
+                border: 2px solid var(--pink-hot);
+                cursor: pointer;
+                transition: transform 0.15s;
+            }
+            #seekBar::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+            /* track info */
+            .player-header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                margin-bottom: 22px;
+            }
+            .track-info h1 {
+                font-family: var(--font-head);
+                font-size: 1.25rem;
+                color: var(--pink-light);
+                line-height: 1.25;
+                max-width: 280px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .track-info p { color: var(--pink-mid); font-size: 0.75rem; margin-top: 3px; }
+
+            /* glowing dot — lights up pink when playing */
+            .status-dot {
+                width: 10px; height: 10px;
+                border-radius: 50%;
+                background: #3a2030;
+                margin-top: 6px;
+                flex-shrink: 0;
+                transition: background 0.3s;
+            }
+            .status-dot.playing {
+                background: var(--pink-hot);
+                box-shadow: 0 0 6px var(--pink-hot);
+            }
+
+            /* control buttons */
+            .controls {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 14px;
+                margin-bottom: 26px;
+            }
+            .btn {
+                background: var(--black-soft);
+                border: 1.5px solid #3a2030;
+                border-radius: 50%;
+                color: var(--pink-light);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background 0.2s, border-color 0.2s, transform 0.15s;
+                font-family: var(--font-body);
+            }
+            .btn:hover { background: #2a1a22; border-color: var(--pink-mid); transform: scale(1.08); }
+            .btn:active { transform: scale(0.94); }
+            .btn-sm { width: 40px; height: 40px; }
+            .btn-md { width: 50px; height: 50px; }
+            .btn-lg {
+                width: 64px; height: 64px;
+                background: var(--pink-hot);
+                border-color: var(--pink-hot);
+                color: var(--black);
+            }
+            .btn-lg:hover { background: var(--pink-deep); border-color: var(--pink-deep); }
+
+            /* loop button turns pink when active */
+            .btn.active { border-color: var(--pink-hot); color: var(--pink-hot); background: #2a1020; }
+
+            .btn svg { fill: currentColor; }
+            .btn-sm svg { width: 16px; height: 16px; }
+            .btn-md svg { width: 20px; height: 20px; }
+            .btn-lg svg { width: 26px; height: 26px; }
+
+            /* volume section */
+            .secondary { padding-top: 18px; border-top: 1px solid #2a1a22; }
+            .control-group label {
+                display: block;
+                font-size: 0.68rem;
+                color: var(--pink-mid);
+                text-transform: uppercase;
+                letter-spacing: 1.2px;
+                margin-bottom: 8px;
+            }
+            .control-group .row { display: flex; align-items: center; gap: 10px; }
+            .vol-icon { color: var(--pink-mid); font-size: 0.95rem; }
+            #volPercent { font-size: 0.75rem; color: var(--pink-mid); min-width: 36px; text-align: right; }
+
+            #volumeSlider {
+                flex: 1;
+                -webkit-appearance: none;
+                appearance: none;
+                height: 4px;
+                border-radius: 2px;
+                outline: none;
+                cursor: pointer;
+                background: linear-gradient(to right, #e91e8c 100%, #3a2030 100%);
+            }
+            #volumeSlider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 14px; height: 14px;
+                border-radius: 50%;
+                background: var(--pink-light);
+                border: 2px solid var(--pink-hot);
+                cursor: pointer;
+                transition: transform 0.15s;
+            }
+            #volumeSlider::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+            /* toast popup */
+            .toast {
+                position: fixed;
+                bottom: 28px;
+                left: 50%;
+                transform: translateX(-50%) translateY(16px);
+                background: var(--pink-hot);
+                color: var(--black);
+                padding: 9px 20px;
+                border-radius: 999px;
+                font-size: 0.78rem;
+                font-weight: 600;
+                opacity: 0;
+                transition: opacity 0.25s, transform 0.25s;
+                pointer-events: none;
+                z-index: 999;
+                white-space: nowrap;
+            }
+            .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        </style>
+    </head>
+
+    <body>
+
+        <div class="player">
+
+            <div class="player-title">
+                <h2>&#9834; MY AUDIO PLAYER</h2>
+            </div>
+
+            <!-- File upload zone -->
+            <div class="upload-space" id="uploadSpace">
+                <span class="icon">&#127925;</span>
+                Click to Upload Audio File<br>
+                <small style="color:#6b3050; font-size:0.72rem;">MP3 &middot; WAV &middot; OGG</small>
+                <input type="file" id="fileInput" accept="audio/*">
+            </div>
+
+            <!-- waveform visual -->
+            <div class="waveform" id="waveform"></div>
+
+            <!-- track duration bar -->
+            <div class="seek-row">
+                <span class="time-label" id="currentTime">0:00</span>
+                <input type="range" id="seekBar" min="0" max="100" value="0" step="0.1">
+                <span class="time-label" id="duration" style="text-align:right;">0:00</span>
+            </div>
+
+            <!-- track name + status dot -->
+            <div class="player-header">
+                <div class="track-info">
+                    <h1 id="trackName">No track loaded</h1>
+                    <p id="trackMeta">&#8212; select a file above &#8212;</p>
+                </div>
+                <div class="status-dot" id="statusDot"></div>
+            </div>
+
+            <!-- main controls: loop | skip back | play/pause | skip fwd | mute -->
+            <div class="controls">
+
+                <button class="btn btn-sm" id="btnLoop" title="Loop (L)">
+                    <svg viewBox="0 0 24 24"><path d="M17 17H7V14L3 18l4 4v-3h12v-6h-2v4zM7 7h10v3l4-4-4-4v3H5v6h2V7z"/></svg>
+                </button>
+
+                <button class="btn btn-md" id="btnSkipBack" title="Back 10s">
+                    <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+                </button>
+
+                <!-- play/pause icons -->
+                <button class="btn btn-lg" id="btnPlay" title="Play / Pause">
+                    <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    <svg id="iconPause" viewBox="0 0 24 24" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+
+                <button class="btn btn-md" id="btnSkipFwd" title="Fwd 10s">
+                    <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6h2v12h-2z"/></svg>
+                </button>
+
+                <!-- mute icon -->
+                <button class="btn btn-sm" id="btnMute" title="Mute / Unmute">
+                    <svg id="iconSound" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+                    <svg id="iconMute" viewBox="0 0 24 24" style="display:none;"><path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zm-13.74-9L4 4.27 7.73 8H3v8h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06A8.99 8.99 0 0 0 17.73 19L19 20.27 20.27 19 4.27 3 3 4.27zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                </button>
+
+            </div>
+
+            <!-- volume slider -->
+            <div class="secondary">
+                <div class="control-group">
+                    <label>Volume</label>
+                    <div class="row">
+                        <span class="vol-icon">&#128265;</span>
+                        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
+                        <span class="vol-icon" id="volPercent">100%</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="toast" id="toast"></div>
+
+        <script>
+
+            // the main audio object — all controls work through this
+            var audio = new Audio();
+
+            // grab all elements once
+            var uploadSpace   = document.getElementById('uploadSpace');
+            var fileInput     = document.getElementById('fileInput');
+            var trackName     = document.getElementById('trackName');
+            var trackMeta     = document.getElementById('trackMeta');
+            var statusDot     = document.getElementById('statusDot');
+            var waveformEl    = document.getElementById('waveform');
+            var seekBar       = document.getElementById('seekBar');
+            var currentTimeEl = document.getElementById('currentTime');
+            var durationEl    = document.getElementById('duration');
+            var btnPlay       = document.getElementById('btnPlay');
+            var btnSkipBack   = document.getElementById('btnSkipBack');
+            var btnSkipFwd    = document.getElementById('btnSkipFwd');
+            var btnMute       = document.getElementById('btnMute');
+            var btnLoop       = document.getElementById('btnLoop');
+            var volumeSlider  = document.getElementById('volumeSlider');
+            var volPercent    = document.getElementById('volPercent');
+            var iconPlay      = document.getElementById('iconPlay');
+            var iconPause     = document.getElementById('iconPause');
+            var iconSound     = document.getElementById('iconSound');
+            var iconMute      = document.getElementById('iconMute');
+            var toast         = document.getElementById('toast');
+
+            // build 55 random-height bars to fake a waveform
+            var BAR_COUNT = 55;
+            var bars = [];
+            for (var i = 0; i < BAR_COUNT; i++) {
+                var bar = document.createElement('div');
+                bar.className = 'wave-bar';
+                bar.style.height = (5 + Math.random() * 35) + 'px';
+                waveformEl.appendChild(bar);
+                bars.push(bar);
+            }
+
+            // seconds → "m:ss"
+            function formatTime(sec) {
+                if (isNaN(sec) || sec < 0) return '0:00';
+                var m = Math.floor(sec / 60);
+                var s = Math.floor(sec % 60).toString().padStart(2, '0');
+                return m + ':' + s;
+            }
+
+            // brief pink pill notification
+            var toastTimer;
+            function showToast(msg) {
+                toast.textContent = msg;
+                toast.classList.add('show');
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 1800);
+            }
+
+            // --- FILE LOADING ---
+            // clicking the zone opens the file picker
+            uploadSpace.addEventListener('click', function () { fileInput.click(); });
+
+            // when a file is chosen, create a blob URL and load it into audio
+            fileInput.addEventListener('change', function (e) {
+                var file = e.target.files[0];
+                if (!file) return;
+                if (audio.src) URL.revokeObjectURL(audio.src); // free previous blob
+                audio.src = URL.createObjectURL(file);
+                audio.load();
+                trackName.textContent = file.name.replace(/\.[^.]+$/, '');
+                trackMeta.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB \u00b7 ' + file.type;
+                showToast('Track loaded \u2665');
+            });
+
+            // drag and drop onto the upload zone
+            uploadSpace.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                uploadSpace.style.borderColor = '#e91e8c';
+            });
+            uploadSpace.addEventListener('dragleave', function () {
+                uploadSpace.style.borderColor = '#f48fb1';
+            });
+            uploadSpace.addEventListener('drop', function (e) {
+                e.preventDefault();
+                uploadSpace.style.borderColor = '#f48fb1';
+                var file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('audio/')) {
+                    var dt = new DataTransfer();
+                    dt.items.add(file);
+                    fileInput.files = dt.files;
+                    fileInput.dispatchEvent(new Event('change'));
+                }
+            });
+
+            // --- PLAY / PAUSE ---
+            function togglePlay() {
+                if (!audio.src) { showToast('Load a track first!'); return; }
+                if (audio.paused) {
+                    audio.play().catch(function (err) { console.warn(err); });
+                } else {
+                    audio.pause();
+                }
+            }
+
+            btnPlay.addEventListener('click', togglePlay);
+
+            // swap icon and animate waveform when play/pause/end fires
+            audio.addEventListener('play', function () {
+                iconPlay.style.display  = 'none';
+                iconPause.style.display = '';
+                statusDot.classList.add('playing');
+                animateBars(true);
+            });
+            audio.addEventListener('pause', function () {
+                iconPlay.style.display  = '';
+                iconPause.style.display = 'none';
+                statusDot.classList.remove('playing');
+                animateBars(false);
+            });
+            audio.addEventListener('ended', function () {
+                iconPlay.style.display  = '';
+                iconPause.style.display = 'none';
+                statusDot.classList.remove('playing');
+                animateBars(false);
+            });
+
+            // --- SEEK BAR + TIME DISPLAY ---
+            // set max and show duration once metadata is known
+            audio.addEventListener('loadedmetadata', function () {
+                seekBar.max = audio.duration;
+                durationEl.textContent = formatTime(audio.duration);
+            });
+
+            // update bar fill, time label, and waveform highlight ~4x per second
+            audio.addEventListener('timeupdate', function () {
+                var pct = (audio.currentTime / audio.duration * 100) || 0;
+                seekBar.value = audio.currentTime;
+                seekBar.style.background =
+                    'linear-gradient(to right, #e91e8c ' + pct + '%, #3a2030 ' + pct + '%)';
+                currentTimeEl.textContent = formatTime(audio.currentTime);
+                highlightWave(pct);
+            });
+
+            // scrubbing: user drags seek bar → jump to that position
+            seekBar.addEventListener('input', function () {
+                audio.currentTime = this.value;
+            });
+
+            // --- VOLUME ---
+            // audio.volume is 0.0–1.0; slider matches that range
+            volumeSlider.addEventListener('input', function () {
+                audio.volume = this.value;
+                var pct = Math.round(this.value * 100);
+                volPercent.textContent = pct + '%';
+                volumeSlider.style.background =
+                    'linear-gradient(to right, #e91e8c ' + pct + '%, #3a2030 ' + pct + '%)';
+                // sync mute icon if slider reaches 0
+                if (audio.volume === 0) {
+                    audio.muted = true;
+                    iconSound.style.display = 'none';
+                    iconMute.style.display  = '';
+                } else {
+                    audio.muted = false;
+                    iconSound.style.display = '';
+                    iconMute.style.display  = 'none';
+                }
+            });
+
+            // --- MUTE / UNMUTE ---
+            // audio.muted silences without changing volume level
+            btnMute.addEventListener('click', function () {
+                audio.muted = !audio.muted;
+                if (audio.muted) {
+                    iconSound.style.display = 'none';
+                    iconMute.style.display  = '';
+                    showToast('Muted');
+                } else {
+                    iconSound.style.display = '';
+                    iconMute.style.display  = 'none';
+                    showToast('Unmuted');
+                }
+            });
+
+            // --- LOOP ---
+            // audio.loop = true → browser auto-restarts when track ends
+            btnLoop.addEventListener('click', function () {
+                audio.loop = !audio.loop;
+                btnLoop.classList.toggle('active', audio.loop);
+                showToast(audio.loop ? 'Loop ON' : 'Loop OFF');
+            });
+
+            // --- SKIP ±10 SECONDS ---
+        
+            btnSkipBack.addEventListener('click', function () {
+                audio.currentTime = Math.max(0, audio.currentTime - 10);
+                showToast('-10s');
+            });
+            btnSkipFwd.addEventListener('click', function () {
+                audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10);
+                showToast('+10s');
+            });
+
+            // waveform pulse animation while playing
+            function animateBars(on) {
+                bars.forEach(function (bar, i) {
+                    bar.classList.toggle('animating', on);
+                    if (on) bar.style.animationDelay = (i * 0.022) + 's';
+                });
+            }
+
+            // colour bars pink up to the current playback position
+            function highlightWave(pct) {
+                var played = Math.floor((pct / 100) * BAR_COUNT);
+                bars.forEach(function (bar, i) {
+                    bar.classList.toggle('played', i < played);
+                });
+            }
+
+        </script>
+    </body>
+</html>
